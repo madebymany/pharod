@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -eo pipefail
+
+name=pharod
+tarball=$name-dist.tar.gz
+
+cd "$(dirname $0)"
+
+version="$(git log -1 --format="%ct")"
+echo Building...
+go build
+[[ -f $tarball ]] && rm "$tarball"
+tar -czf "$tarball" pharod pharod-start
+
+destination="s3://mxm-golang-binaries/${name}/${name}-${version}.tar.gz"
+echo Uploading to ${destination}
+AWS_DEFAULT_PROFILE=MxM aws s3 cp --acl public-read "$tarball" "$destination"
+echo -e "\nUpdate https://github.com/madebymany/homebrew-custom/blob/master/pharod.rb with:\n  version '${version}'"
+echo "  sha256 '$(shasum -a 256 "$tarball" | cut -f1 -d' ')'"
+rm "$tarball"
