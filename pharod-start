@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
 $(boot2docker shellinit 2>/dev/null)
-
-exec sudo sh -c "DOCKER_HOST=$DOCKER_HOST DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY DOCKER_CERT_PATH=$DOCKER_CERT_PATH pharod -d"
+pharod="$(command -v pharod)"
+exec sudo sh -c "DOCKER_HOST=$DOCKER_HOST DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY DOCKER_CERT_PATH=$DOCKER_CERT_PATH "$pharod" -d"

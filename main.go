@@ -222,6 +222,13 @@ func main() {
 	dockerIP = dockerIpAddr.IP
 
 	if *shouldDaemonize {
+		arg0 := os.Args[0]
+		if arg0 == "" {
+			panic("arg 0 is \"\"")
+		} else if !strings.Contains(arg0, "/") {
+			die("When daemonizing, pharod must be called with an absolute path, like /usr/bin/pharod")
+		}
+
 		dmn := &daemon.Context{
 			PidFileName: "/var/run/pharod.pid",
 			PidFilePerm: 0644,
@@ -233,7 +240,7 @@ func main() {
 		fmt.Println("Starting Pharod in the background...")
 		child, err := dmn.Reborn()
 		if err != nil {
-			log.Fatalln(err)
+			die(err.Error())
 		}
 		if child != nil {
 			fmt.Printf("Started as process %d. Check output in %s\n",
