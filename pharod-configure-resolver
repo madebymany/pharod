@@ -3,6 +3,8 @@
 set -e
 
 if ! [[ $(id -u) -eq "0" ]]; then
+  echo "This configures pharod as a DNS resolver on this system."
+  echo "This must be run as root. You may be asked to authenticate..."
   exec sudo -- "$0" "$@"
 fi
 
