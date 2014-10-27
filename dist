@@ -1,21 +1,34 @@
 #!/bin/bash
 
+BUILD_DIR=build
+DIST_SCRIPTS="pharod-start pharod-stop pharod-configure-resolver"
+
 set -eo pipefail
 
 name=pharod
 tarball=$name-dist.tar.gz
 
 cd "$(dirname $0)"
+mkdir -p "$BUILD_DIR"
 
 version="$(git log -1 --format="%ct")"
 echo Building...
 go build
+mv pharod "${BUILD_DIR}/"
+cd pharodctl
+go build
+mv pharodctl "../${BUILD_DIR}/"
+cd ..
+cp $DIST_SCRIPTS "${BUILD_DIR}/"
+
+cd "$BUILD_DIR"
 [[ -f $tarball ]] && rm "$tarball"
-tar -czf "$tarball" pharod pharod-stop pharod-start pharod-configure-resolver
+tar -czf "$tarball" pharod pharodctl $DIST_SCRIPTS
 
 destination="s3://mxm-golang-binaries/${name}/${name}-${version}.tar.gz"
 echo Uploading to ${destination}
 AWS_DEFAULT_PROFILE=MxM aws s3 cp --acl public-read "$tarball" "$destination"
 echo -e "\nUpdate https://github.com/madebymany/homebrew-custom/blob/master/pharod.rb with:\n  version '${version}'"
 echo "  sha256 '$(shasum -a 256 "$tarball" | cut -f1 -d' ')'"
-rm "$tarball"
+cd ..
+rm -r "$BUILD_DIR"
