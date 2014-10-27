@@ -1,6 +1,17 @@
 #!/bin/bash
-
 set -e
+
+if pgrep -qx pharod
+then
+  echo "You can only have one instance of pharod running at one time"
+  exit 1
+fi
+
+if [[ "poweroff" = "$(boot2docker status)" ]]
+then
+  echo "boot2docker not running, please start it with 'boot2docker start'"
+  exit 1
+fi
 
 $(boot2docker shellinit 2>/dev/null)
 pharod="$(command -v pharod)"

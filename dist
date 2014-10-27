@@ -11,7 +11,7 @@ version="$(git log -1 --format="%ct")"
 echo Building...
 go build
 [[ -f $tarball ]] && rm "$tarball"
-tar -czf "$tarball" pharod pharod-start pharod-configure-resolver
+tar -czf "$tarball" pharod pharod-stop pharod-start pharod-configure-resolver
 
 destination="s3://mxm-golang-binaries/${name}/${name}-${version}.tar.gz"
 echo Uploading to ${destination}
