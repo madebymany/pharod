@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 )
 
 var sourceAddrs map[string]map[int]*net.TCPAddr
@@ -62,13 +61,20 @@ func die(msg string) {
 	os.Exit(1)
 }
 
-func containerPortKey(c docker.APIContainers, p docker.APIPort) string {
+func containerPortKey(c *docker.Container, p docker.APIPort) string {
 	return fmt.Sprintf("%s:%d", c.ID, p.PrivatePort)
 }
 
-func addContainer(c docker.APIContainers) (out []*Listener) {
-	out = make([]*Listener, 0, len(c.Ports))
-	for _, port := range c.Ports {
+func addContainer(dockerClient *docker.Client, cid string) (out []*Listener) {
+	c, err := dockerClient.InspectContainer(cid)
+	if err != nil {
+		log.Printf("Getting container info failed for id %s: %s", cid, err)
+		return nil
+	}
+	ports := c.NetworkSettings.PortMappingAPI()
+
+	out = make([]*Listener, 0, len(ports))
+	for _, port := range ports {
 		key := containerPortKey(c, port)
 		if _, ok := containerListeners[key]; ok {
 			// already started
@@ -175,7 +181,6 @@ func main() {
 		die(err.Error())
 	}
 
-	listeners := []*Listener{}
 	dnsZone = make(map[string]net.IP, 0)
 	containerListeners = make(map[string]*Listener)
 	sourceAddrs = make(map[string]map[int]*net.TCPAddr)
@@ -183,28 +188,28 @@ func main() {
 	go startDns()
 	go startAPI()
 
-	lastSeenContainers := make(map[string]bool)
-	for {
-		containers, err := dockerClient.ListContainers(docker.ListContainersOptions{})
-		if err != nil {
-			die(err.Error())
-		}
+	dockerEvents := make(chan *docker.APIEvents)
+	err = dockerClient.AddEventListener(dockerEvents)
+	if err != nil {
+		die(err.Error())
+	}
 
-		for _, c := range containers {
-			listeners = append(listeners, addContainer(c)...)
-			delete(lastSeenContainers, c.ID)
-		}
+	containers, err := dockerClient.ListContainers(docker.ListContainersOptions{})
+	if err != nil {
+		die(err.Error())
+	}
 
-		for cid, _ := range lastSeenContainers {
-			removeContainer(cid)
-		}
+	for _, c := range containers {
+		addContainer(dockerClient, c.ID)
+	}
 
-		lastSeenContainers = make(map[string]bool)
-		for _, c := range containers {
-			lastSeenContainers[c.ID] = true
+	for ev := range dockerEvents {
+		switch ev.Status {
+		case "start":
+			addContainer(dockerClient, ev.ID)
+		case "stop":
+			removeContainer(ev.ID)
 		}
-
-		time.Sleep(time.Second)
 	}
 }
 
@@ -280,10 +285,15 @@ func dnsNameFromContainerName(containerName string) string {
 			containerName, "-"), "-"), "-")
 }
 
-func ListenerFromContainerAndPort(container docker.APIContainers, port docker.APIPort) (out *Listener, err error) {
+func ListenerFromContainerAndPort(container *docker.Container, port docker.APIPort) (out *Listener, err error) {
 
-	if len(container.Names) == 0 {
-		return nil, fmt.Errorf("Container %s has no names from which to build a DNS name", container.ID)
+	if container.Name == "" {
+		return nil, fmt.Errorf("Container %s has no name from which to build a DNS name", container.ID)
+	}
+
+	if port.PublicPort == 0 || port.PrivatePort == 0 {
+		return nil, fmt.Errorf("Public port not exposed for %d on %s",
+			port.PublicPort, container.Name)
 	}
 
 	out = &Listener{
@@ -293,9 +303,9 @@ func ListenerFromContainerAndPort(container docker.APIContainers, port docker.AP
 		closeAllConns: make(chan struct{}),
 	}
 
-	out.DNSName = dnsNameFromContainerName(container.Names[0])
+	out.DNSName = dnsNameFromContainerName(container.Name)
 	if out.DNSName == "" {
-		return nil, fmt.Errorf("Couldn't build a non-empty DNS name from '%s'", container.Names[0])
+		return nil, fmt.Errorf("Couldn't build a non-empty DNS name from '%s'", container.Name)
 	}
 
 	destIPAddr, err := net.ResolveIPAddr("ip", port.IP)
