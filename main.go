@@ -1,17 +1,13 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/sevlyar/go-daemon"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -46,56 +42,19 @@ type Listener struct {
 }
 
 func newDockerClient(host string) (client *docker.Client, err error) {
-	httpClient := http.DefaultClient
-	httpTransport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-	httpClient.Transport = httpTransport
-
 	if os.Getenv("DOCKER_TLS_VERIFY") != "" {
-		hostUrl, err := url.Parse(host)
-		hostUrl.Scheme = "https"
-		host = hostUrl.String()
-
 		dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
 		if dockerCertPath == "" {
 			return nil, fmt.Errorf("docker TLS required, but no DOCKER_CERT_PATH set")
 		}
-		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(path.Join(dockerCertPath, "ca.pem"))
-		if err != nil {
-			return nil, err
-		}
-		certPool.AppendCertsFromPEM(file)
 
-		cert, err := tls.LoadX509KeyPair(
+		return docker.NewTLSClient(host,
 			path.Join(dockerCertPath, "cert.pem"),
 			path.Join(dockerCertPath, "key.pem"),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		var tlsConfig tls.Config
-		tlsConfig.RootCAs = certPool
-		tlsConfig.Certificates = []tls.Certificate{cert}
-		tlsConfig.InsecureSkipVerify = false
-
-		httpTransport.TLSClientConfig = &tlsConfig
+			path.Join(dockerCertPath, "ca.pem"))
+	} else {
+		return docker.NewClient(host)
 	}
-
-	client, err = docker.NewClient(host)
-	if err != nil {
-		return
-	}
-	client.HTTPClient = httpClient
-
-	return
 }
 
 func die(msg string) {
