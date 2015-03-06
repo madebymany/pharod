@@ -312,11 +312,13 @@ func sourceAddrForPort(port int, dest *net.TCPAddr) *net.TCPAddr {
 	return getSourceAddr(addr)
 }
 
-var dnsNamePattern = regexp.MustCompile(`[^-a-z0-9]+`)
+var dnsNameAllowedChars = regexp.MustCompile(`[^-a-z0-9]+`)
+var dnsNameHyphenStrings = regexp.MustCompile(`-{2,}`)
 
 func dnsNameFromContainerName(containerName string) string {
-	return dnsNamePattern.ReplaceAllLiteralString(
-		strings.Trim(containerName, "/"), ".")
+	return dnsNameHyphenStrings.ReplaceAllLiteralString(
+		strings.Trim(dnsNameAllowedChars.ReplaceAllLiteralString(
+			containerName, "-"), "-"), "-")
 }
 
 func ListenerFromContainerAndPort(container docker.APIContainers, port docker.APIPort) (out *Listener, err error) {
