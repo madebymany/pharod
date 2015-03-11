@@ -1,18 +1,21 @@
 #!/bin/bash
 set -e
 
-if pgrep -qx pharod
-then
+pharod="$(command -v pharod)"
+if [[ -z $pharod ]]; then
+  echo "pharod not found in $PATH, please check it's installed properly"
+  exit 1
+fi
+
+if pgrep -qx pharod; then
   echo "You can only have one instance of pharod running at one time"
   exit 1
 fi
 
-if [[ "poweroff" = "$(boot2docker status)" ]]
-then
+if [[ "poweroff" = "$(boot2docker status)" ]]; then
   echo "boot2docker not running, please start it with 'boot2docker start'"
   exit 1
 fi
 
-$(boot2docker shellinit 2>/dev/null)
-pharod="$(command -v pharod)"
-exec sudo sh -c "DOCKER_HOST=$DOCKER_HOST DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY DOCKER_CERT_PATH=$DOCKER_CERT_PATH "$pharod" -d"
+eval "$(boot2docker shellinit 2>/dev/null)"
+exec sudo sh -c "DOCKER_HOST=$DOCKER_HOST DOCKER_TLS_VERIFY=$DOCKER_TLS_VERIFY DOCKER_CERT_PATH=$DOCKER_CERT_PATH '$pharod' -d"
