@@ -123,6 +123,11 @@ func main() {
 		panic("SourceStartIPStr not an IP address")
 	}
 
+	err = install()
+	if err != nil {
+		die(err.Error())
+	}
+
 	dockerHost := os.Getenv("DOCKER_HOST")
 	if dockerHost == "" {
 		die("DOCKER_HOST not set")
