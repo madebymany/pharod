@@ -325,7 +325,19 @@ func ListenerFromContainerAndPort(container *docker.Container, port docker.APIPo
 	}
 	out.Dest.Port = int(port.PublicPort)
 	out.Dest.Zone = destIPAddr.Zone
-	out.Src = sourceAddrForPort(int(port.PrivatePort), out.Dest)
+
+	var srcPort int
+	/* If destination is an ephemeral port, we want to listen on the original
+	 * exposed port on the container, as that's the nice friendly one. If it's
+	 * not, we want to listen on the same port as we're forwarding to, as that
+	 * means the user has exposed a different port on the host.
+	 */
+	if out.Dest.Port >= 49152 {
+		srcPort = int(port.PrivatePort)
+	} else {
+		srcPort = out.Dest.Port
+	}
+	out.Src = sourceAddrForPort(srcPort, out.Dest)
 	return
 }
 
