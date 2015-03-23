@@ -25,7 +25,7 @@ networksetup -switchtolocation "$templocation" >/dev/null 2>&1
 networksetup -switchtolocation "$location" >/dev/null 2>&1
 networksetup -deletelocation "$templocation" >/dev/null 2>&1
 `
-const newPowRuleFormat = `table <powhosts> { 0/0, 127.0.0.1, !127/0 }
+const newPowRuleFormat = `table <powhosts> { 0/0, 127.0.0.1, !127/8 }
 rdr pass proto tcp from any to <powhosts> port {80,%[1]s} -> 127.0.0.1 port %[1]s
 `
 
