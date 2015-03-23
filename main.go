@@ -210,9 +210,9 @@ func main() {
 
 	for ev := range dockerEvents {
 		switch ev.Status {
-		case "start":
+		case "start", "unpause":
 			addContainer(dockerClient, ev.ID)
-		case "stop":
+		case "stop", "pause", "die":
 			removeContainer(ev.ID)
 		}
 	}
