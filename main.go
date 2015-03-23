@@ -386,15 +386,18 @@ func (self *Listener) Wait() {
 }
 
 func (self *Listener) forward(local net.Conn) {
+	defer local.Close()
+
 	remote, err := net.DialTCP("tcp", nil, self.Dest)
 	if err != nil {
 		log.Printf("Remote dial failed: %v\n", err)
 		return
 	}
-	wg := sync.WaitGroup{}
+	defer remote.Close()
 
-	self.finished.Add(2)
+	wg := sync.WaitGroup{}
 	wg.Add(2)
+	self.finished.Add(2)
 
 	go func() {
 		io.Copy(local, remote)
