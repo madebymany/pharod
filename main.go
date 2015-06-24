@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -23,6 +24,7 @@ var dnsZone map[string]net.IP
 var containerListeners map[string]*Listener
 var dockerIP net.IP
 var SourceStartIP = net.ParseIP("127.2.2.1")
+var firstEphemeralPort int
 
 const DnsTld = "pharod"
 
@@ -110,6 +112,18 @@ func main() {
 
 	log.SetOutput(os.Stderr)
 	flag.Parse()
+
+	firstEphemeralPortStr := os.Getenv("DOCKER_FIRST_EPHEMERAL_PORT")
+	if firstEphemeralPortStr == "" {
+		firstEphemeralPortStr = "49152"
+	}
+
+	firstEphemeralPortInt64, err := strconv.ParseInt(
+		firstEphemeralPortStr, 10, 64)
+	if err != nil {
+		die("error reading DOCKER_FIRST_EPHEMERAL_PORT: " + err.Error())
+	}
+	firstEphemeralPort = int(firstEphemeralPortInt64)
 
 	currentUser, err := user.Current()
 	if err != nil {
@@ -332,7 +346,7 @@ func ListenerFromContainerAndPort(container *docker.Container, port docker.APIPo
 	 * not, we want to listen on the same port as we're forwarding to, as that
 	 * means the user has exposed a different port on the host.
 	 */
-	if out.Dest.Port >= 49152 {
+	if out.Dest.Port >= firstEphemeralPort {
 		srcPort = int(port.PrivatePort)
 	} else {
 		srcPort = out.Dest.Port
