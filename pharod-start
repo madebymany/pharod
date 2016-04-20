@@ -3,7 +3,7 @@ set -eo pipefail
 
 pharod="$(command -v pharod)"
 if [[ -z $pharod ]]; then
-  echo "pharod not found in $PATH, please check it's installed properly"
+  echo "pharod not found in \$PATH, please check it's installed properly"
   exit 1
 fi
 
