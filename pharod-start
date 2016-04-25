@@ -12,23 +12,37 @@ if pgrep -qx pharod; then
   exit 1
 fi
 
-if command -v dlite >/dev/null; then
+if pgrep -qx com.docker.backend; then
+  echo "** Detected Docker for Mac"
+
+  DOCKER_HOST_IP="$(pinata get hostname).local"
+  # We have to hard-code this because we have no SSH access to the VM:
+  DOCKER_FIRST_EPHEMERAL_PORT='32768'
+
+elif command -v dlite >/dev/null; then
+  echo "** Docker for Mac not installed or not running; trying Dlite"
+
   if ! pgrep -qx dlite; then
     echo "dlite not running, please start it with 'dlite start'"
     exit 1
   fi
 
-  if ! grep -qw '^local.docker ' ~/.ssh/known_hosts; then
-    ssh-keyscan -t rsa local.docker 2>/dev/null >>~/.ssh/known_hosts
+  echo "** Detected Dlite"
+
+  DOCKER_HOST_IP="local.docker"
+
+  if ! grep -qw "^$DOCKER_HOST_IP " ~/.ssh/known_hosts; then
+    ssh-keyscan -t rsa "$DOCKER_HOST_IP" 2>/dev/null >>~/.ssh/known_hosts
   fi
 
   if [[ -z $DOCKER_FIRST_EPHEMERAL_PORT ]]; then
     # This is what Docker also reads the first port from.
-    DOCKER_FIRST_EPHEMERAL_PORT="$(ssh docker@local.docker cat /proc/sys/net/ipv4/ip_local_port_range | egrep -o '^\d+')"
+    DOCKER_FIRST_EPHEMERAL_PORT="$(ssh docker@$DOCKER_HOST_IP cat /proc/sys/net/ipv4/ip_local_port_range | egrep -o '^\d+')"
   fi
 
 elif [[ $(uname -s) == "Darwin" ]]; then
-  echo "To use Docker in OS X, you need to install https://github.com/nlf/dlite"
+  echo "To use Docker in OS X, you need to install Docker for Mac"
+  echo "or Dlite: https://github.com/nlf/dlite"
   exit 1
 fi
 
@@ -38,4 +52,4 @@ if [[ -z $PHAROD_FOREGROUND ]]; then
   args="$args -d"
 fi
 
-exec sudo sh -c "DOCKER_HOST='unix:///var/run/docker.sock' DOCKER_HOST_IP='local.docker' DOCKER_FIRST_EPHEMERAL_PORT='$DOCKER_FIRST_EPHEMERAL_PORT' '$pharod' $args"
+exec sudo sh -c "DOCKER_HOST='unix:///var/run/docker.sock' DOCKER_HOST_IP='$DOCKER_HOST_IP' DOCKER_FIRST_EPHEMERAL_PORT='$DOCKER_FIRST_EPHEMERAL_PORT' '$pharod' $args"
