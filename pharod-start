@@ -15,7 +15,7 @@ fi
 if [[ $(docker version --format "{{.Server.KernelVersion}}") == *-moby ]]; then
   echo "** Detected Docker for Mac"
 
-  DOCKER_HOST_IP="$(pinata get hostname).local"
+  DOCKER_HOST_IP="$HOSTNAME.local"
   # We have to hard-code this because we have no SSH access to the VM:
   DOCKER_FIRST_EPHEMERAL_PORT='32768'
 
