@@ -12,7 +12,7 @@ if pgrep -qx pharod; then
   exit 1
 fi
 
-if pgrep -qx com.docker.backend; then
+if [[ $(docker version --format "{{.Server.KernelVersion}}") == *-moby ]]; then
   echo "** Detected Docker for Mac"
 
   DOCKER_HOST_IP="$(pinata get hostname).local"
