@@ -12,6 +12,8 @@ if pgrep -qx pharod; then
   exit 1
 fi
 
+sudo mkdir -p /etc/resolver
+
 if [[ $(docker version --format "{{.Server.KernelVersion}}") == *-moby ]]; then
   echo "** Detected Docker for Mac"
 
